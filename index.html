@@ -3,52 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weather Report</title>
+    <title>Weather App</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             text-align: center;
-            margin: 20px;
+            margin: 0;
+            padding: 0;
+            background: #1269d2a1;
+        }
+        .container {
+            max-width: 600px;
+            margin: 30px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px #ccc;
         }
         input, button {
             margin: 10px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            cursor: pointer;
+            border: none;
+            background: #c07f10;
+            color: white;
+            border-radius: 4px;
+            transition: 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #weatherResult {
+            margin-top: 20px;
+        }
+        .favorites-list {
+            list-style: none;
+            padding: 0;
+        }
+        .favorites-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f1f1f1;
+            margin: 5px 0;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .favorites-list button {
+            margin-left: 5px;
+            padding: 5px 10px;
+            font-size: 14px;
+            background: #28a745;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .favorites-list button:hover {
+            background: #218838;
+        }
+        .remove-btn {
+            background: #dc3545;
+        }
+        .remove-btn:hover {
+            background: #c82333;
         }
     </style>
 </head>
+
 <body>
-    <h1>Weather Report</h1>
-    <p>Enter the name of a city to get the weather:</p>
+    <h1>Weather App 🌤</h1>
+    <form id="searchForm">
+        <input 
+            type="text"
+            id="cityInput"
+            placeholder="Enter city name"
+            required
+        />
+        <button type="submit">Search</button>
+    </form>
 
-    <!-- Input field and button -->
-    <input type="text" id="cityInput" placeholder="Enter city name" />
-    <button onclick="getWeather()">Get Weather</button>
+    <div id="weatherDisplay"></div>
 
-    <!-- Weather display -->
-    <div id="weatherOutput"></div>
+    <h2>Favorite Cities</h2>
+    <ul id="favoritesList" class="favorites-list"></ul>
 
     <script>
-        async function getWeather() {
-            const city = document.getElementById('cityInput').value;
-            const apiKey = 'your_api_key_here'; // Replace with your OpenWeatherMap API key
-            const apiUrl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+        const API_KEY = 'bd5e378503939ddaee76f12ad7a97608'; // Replace with your OpenWeather API key
+        const BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
 
-            try {
-                const response = await fetch(apiUrl);
-                if (!response.ok) {
-                    throw new Error('City not found');
-                }
-                const data = await response.json();
-                const weatherInfo = `
-                    <h2>Weather in ${data.name}</h2>
-                    <p>Temperature: ${data.main.temp} °C</p>
-                    <p>Condition: ${data.weather[0].description}</p>
-                    <p>Humidity: ${data.main.humidity}%</p>
-                `;
-                document.getElementById('weatherOutput').innerHTML = weatherInfo;
-            } catch (error) {
-                document.getElementById('weatherOutput').innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
-            }
+        const searchForm = document.getElementById("searchForm");
+        const cityInput = document.getElementById("cityInput");
+        const weatherDisplay = document.getElementById("weatherDisplay");
+        const favoritesList = document.getElementById("favoritesList");
+
+        let favoriteCities = JSON.parse(localStorage.getItem("favoriteCities")) || [];
+
+        // Display weather data
+        function displayWeather(data) {
+            weatherDisplay.innerHTML = `
+                <h2>${data.name}, ${data.sys.country}</h2>
+                <p>Temperature: ${data.main.temp}°C</p>
+                <p>Weather: ${data.weather[0].description}</p>
+                <p>Humidity: ${data.main.humidity}%</p>
+            `;
         }
+
+        // Fetch weather data
+        function fetchWeather(city) {
+            const url = `${BASE_URL}?q=${city}&appid=${API_KEY}&units=metric`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.cod === "404") {
+                        weatherDisplay.innerHTML = `<p>City not found.</p>`;
+                    } else {
+                        displayWeather(data);
+
+                        // Add to favorites if not already present
+                        if (!favoriteCities.includes(city)) {
+                            favoriteCities.push(city);
+                            localStorage.setItem("favoriteCities", JSON.stringify(favoriteCities));
+                            displayFavorites();
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching weather:", error);
+                    weatherDisplay.innerHTML = `<p>Error fetching weather data.</p>`;
+                });
+        }
+
+        // Display favorite cities with buttons
+        function displayFavorites() {
+            favoritesList.innerHTML = ""; 
+            
+            favoriteCities.forEach(city => {
+                const li = document.createElement("li");
+
+                // Display city name
+                const span = document.createElement("span");
+                span.textContent = city;
+
+                // Show weather button
+                const showWeatherBtn = document.createElement("button");
+                showWeatherBtn.textContent = "Show Weather";
+                showWeatherBtn.addEventListener("click", () => {
+                    fetchWeather(city);
+                });
+
+                // Remove button
+                const removeBtn = document.createElement("button");
+                removeBtn.textContent = "Remove";
+                removeBtn.classList.add("remove-btn");
+                removeBtn.addEventListener("click", () => {
+                    favoriteCities = favoriteCities.filter(c => c !== city);
+                    localStorage.setItem("favoriteCities", JSON.stringify(favoriteCities));
+                    displayFavorites();
+                });
+
+                // Append elements
+                li.appendChild(span);
+                li.appendChild(showWeatherBtn);
+                li.appendChild(removeBtn);
+                favoritesList.appendChild(li);
+            });
+        }
+
+        // Event listener for form submission
+        searchForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const city = cityInput.value.trim();
+            
+            if (city) {
+                fetchWeather(city);
+                cityInput.value = "";
+            }
+        });
+
+        // Display favorites on page load
+        displayFavorites();
     </script>
 </body>
 </html>
